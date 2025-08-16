@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚀 N8N Web Interface</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .status {
+            padding: 10px 20px;
+            border-radius: 20px;
+            background: rgba(255, 255, 255, 0.2);
+            display: inline-block;
+            transition: all 0.3s ease;
+        }
+
+        .status.success { background: rgba(76, 175, 80, 0.8); }
+        .status.error { background: rgba(244, 67, 54, 0.8); }
+        .status.info { background: rgba(33, 150, 243, 0.8); }
+
+        .content {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            gap: 20px;
+            height: calc(100vh - 150px);
+        }
+
+        .sidebar {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            overflow-y: auto;
+        }
+
+        .sidebar h3 {
+            margin: 20px 0 10px 0;
+            color: #5a67d8;
+            font-size: 1.1rem;
+        }
+
+        .sidebar button {
+            width: 100%;
+            padding: 12px;
+            margin: 5px 0;
+            border: none;
+            border-radius: 8px;
+            background: #5a67d8;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sidebar button:hover {
+            background: #4c51bf;
+            transform: translateY(-2px);
+        }
+
+        .sidebar input, .sidebar select {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .main {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .output {
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 15px;
+            min-height: 400px;
+            border: 1px solid #e2e8f0;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .input-container {
+            padding: 20px;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .input-container select,
+        .input-container input {
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        .input-container select {
+            flex: 0 0 250px;
+        }
+
+        .input-container input {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .input-container button {
+            padding: 12px 24px;
+            background: #48bb78;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .input-container button:hover {
+            background: #38a169;
+            transform: translateY(-2px);
+        }
+
+        .success { color: #38a169; }
+        .error { color: #e53e3e; }
+        .info { color: #3182ce; }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        @media (max-width: 768px) {
+            .content {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+            
+            .sidebar {
+                order: 2;
+            }
+            
+            header h1 {
+                font-size: 2rem;
+            }
+
+            .input-container {
+                flex-direction: column;
+            }
+
+            .input-container select,
+            .input-container input {
+                flex: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚀 N8N Web Interface</h1>
+            <div class="status" id="status">Conectando...</div>
+        </header>
+
+        <div class="content">
+            <div class="sidebar">
+                <h3>🚀 Comandos Rápidos</h3>
+                <button onclick="listNodes()">📋 Listar Nodes</button>
+                <button onclick="listAITools()">🤖 Ferramentas AI</button>
+                <button onclick="listWorkflows()">🔧 Workflows</button>
+                <button onclick="healthCheck()">💚 Status N8N</button>
+                <button onclick="showDocumentation()">📚 Documentação</button>
+                
+                <h3>🔍 Busca</h3>
+                <input type="text" id="searchInput" placeholder="Buscar nodes..." onkeypress="if(event.key==='Enter') searchNodes()">
+                <button onclick="searchNodes()">🔍 Buscar</button>
+                
+                <h3>⚙️ Comandos Avançados</h3>
+                <select id="advancedCommand">
+                    <option value="validate_workflow">Validar Workflow</option>
+                    <option value="get_node_essentials">Detalhes Node</option>
+                    <option value="n8n_list_executions">Execuções</option>
+                    <option value="get_database_statistics">Estatísticas</option>
+                </select>
+                <button onclick="executeAdvanced()">▶️ Executar</button>
+
+                <h3>📊 Status</h3>
+                <div id="systemStatus">
+                    <small>Sistema: <span id="sysStatus">Verificando...</span></small>
+                </div>
+            </div>
+
+            <div class="main">
+                <div class="chat-container">
+                    <div id="output" class="output">🚀 N8N Web Interface
+Conectado ao Railway n8n-MCP
+Aguardando comandos...
+
+Digite comandos ou use os botões da barra lateral.
+</div>
+                </div>
+                
+                <div class="input-container">
+                    <select id="commandSelect">
+                        <option value="list_nodes">📋 Listar Nodes</option>
+                        <option value="search_nodes">🔍 Buscar Nodes</option>
+                        <option value="get_node_essentials">⚙️ Detalhes do Node</option>
+                        <option value="list_ai_tools">🤖 Ferramentas AI</option>
+                        <option value="n8n_list_workflows">🔧 Listar Workflows</option>
+                        <option value="n8n_health_check">💚 Status N8N</option>
+                        <option value="tools_documentation">📚 Documentação</option>
+                        <option value="validate_workflow">✅ Validar Workflow</option>
+                    </select>
+                    
+                    <input type="text" id="paramInput" placeholder="Parâmetros (JSON ou texto)" onkeypress="if(event.key==='Enter') executeCommand()">
+                    <button onclick="executeCommand()">▶️ Executar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class N8NInterface {
+            constructor() {
+                this.init();
+            }
+
+            async init() {
+                await this.checkConnection();
+                this.setupEventListeners();
+                setInterval(() => this.updateSystemStatus(), 30000);
+            }
+
+            async checkConnection() {
+                try {
+                    const response = await this.callMCP('tools_documentation', {});
+                    this.updateStatus('Conectado ✅', 'success');
+                    this.addOutput('✅ Conexão estabelecida com n8n-MCP!', 'success');
+                } catch (error) {
+                    this.updateStatus('Erro de Conexão ❌', 'error');
+                    this.addOutput(`❌ Erro de conexão: ${error.message}`, 'error');
+                }
+            }
+
+            updateStatus(message, type) {
+                const status = document.getElementById('status');
+                status.textContent = message;
+                status.className = `status ${type}`;
+            }
+
+            updateSystemStatus() {
+                document.getElementById('sysStatus').textContent = new Date().toLocaleTimeString();
+            }
+
+            setupEventListeners() {
+                document.getElementById('searchInput').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') this.searchNodes();
+                });
+
+                document.getElementById('paramInput').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') this.executeCommand();
+                });
+            }
+
+            async callMCP(method, params = {}) {
+                const response = await fetch('/api/mcp', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        method: method,
+                        params: params
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ error: 'Erro de conexão' }));
+                    throw new Error(errorData.error || `HTTP ${response.status}`);
+                }
+
+                return await response.json();
+            }
+
+            addOutput(content, type = 'info') {
+                const output = document.getElementById('output');
+                const timestamp = new Date().toLocaleTimeString();
+                const message = `[${timestamp}] ${content}\n\n`;
+                
+                const span = document.createElement('span');
+                span.className = type;
+                span.textContent = message;
+                
+                output.appendChild(span);
+                output.scrollTop = output.scrollHeight;
+            }
+
+            showLoading(method) {
+                const output = document.getElementById('output');
+                const loadingDiv = document.createElement('div');
+                loadingDiv.id = 'loading-indicator';
+                loadingDiv.innerHTML = `<span class="loading"></span> Executando ${method}...`;
+                output.appendChild(loadingDiv);
+                output.scrollTop = output.scrollHeight;
+            }
+
+            hideLoading() {
+                const loading = document.getElementById('loading-indicator');
+                if (loading) loading.remove();
+            }
+
+            async executeMethod(method, params = {}) {
+                try {
+                    this.showLoading(method);
+                    this.addOutput(`🔄 Executando: ${method}...`, 'info');
+                    const result = await this.callMCP(method, params);
+                    this.hideLoading();
+                    
+                    if (typeof result === 'object') {
+                        this.addOutput(JSON.stringify(result, null, 2), 'success');
+                    } else {
+                        this.addOutput(result, 'success');
+                    }
+                } catch (error) {
+                    this.hideLoading();
+                    this.addOutput(`❌ Erro: ${error.message}`, 'error');
+                }
+            }
+
+            async listNodes() {
+                await this.executeMethod('list_nodes', {});
+            }
+
+            async listAITools() {
+                await this.executeMethod('list_ai_tools', {});
+            }
+
+            async listWorkflows() {
+                await this.executeMethod('n8n_list_workflows', {});
+            }
+
+            async healthCheck() {
+                await this.executeMethod('n8n_health_check', {});
+            }
+
+            async showDocumentation() {
+                await this.executeMethod('tools_documentation', {});
+            }
+
+            async searchNodes() {
+                const query = document.getElementById('searchInput').value.trim();
+                if (!query) {
+                    this.addOutput('❌ Digite algo para buscar', 'error');
+                    return;
+                }
+                await this.executeMethod('search_nodes', { query: query });
+            }
+
+            async executeCommand() {
+                const command = document.getElementById('commandSelect').value;
+                const paramInput = document.getElementById('paramInput').value.trim();
+                
+                let params = {};
+                if (paramInput) {
+                    try {
+                        // Tentar como JSON primeiro
+                        params = JSON.parse(paramInput);
+                    } catch (e) {
+                        // Se não for JSON válido, usar como query string
+                        if (command.includes('search') || command.includes('get_node')) {
+                            params = { query: paramInput };
+                        } else {
+                            params = { input: paramInput };
+                        }
+                    }
+                }
+
+                await this.executeMethod(command, params);
+            }
+
+            async executeAdvanced() {
+                const command = document.getElementById('advancedCommand').value;
+                await this.executeMethod(command, {});
+            }
+        }
+
+        // Funções globais para os botões
+        let interfaceInstance;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            interfaceInstance = new N8NInterface();
+        });
+
+        function listNodes() { interfaceInstance.listNodes(); }
+        function listAITools() { interfaceInstance.listAITools(); }
+        function listWorkflows() { interfaceInstance.listWorkflows(); }
+        function healthCheck() { interfaceInstance.healthCheck(); }
+        function showDocumentation() { interfaceInstance.showDocumentation(); }
+        function searchNodes() { interfaceInstance.searchNodes(); }
+        function executeCommand() { interfaceInstance.executeCommand(); }
+        function executeAdvanced() { interfaceInstance.executeAdvanced(); }
+    </script>
+</body>
+</html>
