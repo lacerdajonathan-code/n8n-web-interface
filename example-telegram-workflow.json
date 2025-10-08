@@ -1,0 +1,141 @@
+{
+  "name": "Telegram Bot - Gerenciamento de Rascunhos",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "telegram-webhook",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Telegram Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "telegram-bot-webhook"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Import the workflow helper module\nconst telegram = require('./telegram-bot-workflow.js');\n\n// Get webhook data\nconst webhookData = $input.all()[0].json;\n\n// Initialize database connection (adjust based on your DB)\n// const db = new telegram.DatabaseHelper($('Postgres').getConnection());\n\n// For this example, we'll mock the database\nconst mockDB = {\n  async executeQuery(query, params) {\n    console.log('Mock DB Query:', query, params);\n    return [];\n  },\n  async insertDraft(userId, content) {\n    console.log('Insert draft:', userId, content);\n    return Math.floor(Math.random() * 1000);\n  },\n  async getDrafts(userId, page, limit) {\n    return {\n      drafts: [\n        { id: 1, content: 'Draft 1', status: 'pending', created_at: new Date() },\n        { id: 2, content: 'Draft 2', status: 'pending', created_at: new Date() }\n      ],\n      total: 2,\n      hasMore: false,\n      currentPage: 1,\n      totalPages: 1\n    };\n  },\n  async updateDraft(draftId, content, status) {\n    console.log('Update draft:', draftId, content, status);\n    return true;\n  },\n  async deleteDraft(draftId, userId) {\n    console.log('Delete draft:', draftId, userId);\n    return true;\n  }\n};\n\n// Process the webhook\ntry {\n  const response = await telegram.handleTelegramWebhook(webhookData, mockDB);\n  return [{ json: response }];\n} catch (error) {\n  console.error('Handler error:', error);\n  return [{\n    json: {\n      method: 'sendMessage',\n      chat_id: webhookData.message?.chat?.id || webhookData.callback_query?.message?.chat?.id,\n      text: '❌ Erro ao processar sua mensagem. Tente novamente.'\n    }\n  }];\n}"
+      },
+      "id": "process-message",
+      "name": "Process Message",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "url": "=https://api.telegram.org/bot{{ $env.TELEGRAM_BOT_TOKEN }}/{{ $json.method }}",
+        "options": {
+          "bodyContentType": "json"
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "chat_id",
+              "value": "={{ $json.chat_id }}"
+            },
+            {
+              "name": "text",
+              "value": "={{ $json.text }}"
+            },
+            {
+              "name": "reply_markup",
+              "value": "={{ $json.reply_markup ? JSON.stringify($json.reply_markup) : undefined }}"
+            },
+            {
+              "name": "parse_mode",
+              "value": "={{ $json.parse_mode || 'HTML' }}"
+            }
+          ]
+        }
+      },
+      "id": "send-telegram-response",
+      "name": "Send to Telegram",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { ok: true } }}"
+      },
+      "id": "respond-to-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "-- User States Table\nCREATE TABLE IF NOT EXISTS user_states (\n  user_id BIGINT PRIMARY KEY,\n  status VARCHAR(50) DEFAULT 'idle',\n  current_draft_id INT,\n  last_activity TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n);\n\n-- Drafts Table\nCREATE TABLE IF NOT EXISTS drafts (\n  id SERIAL PRIMARY KEY,\n  user_id BIGINT NOT NULL,\n  content TEXT NOT NULL,\n  status VARCHAR(20) DEFAULT 'pending',\n  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n);\n\n-- Draft Attachments Table\nCREATE TABLE IF NOT EXISTS draft_attachments (\n  id SERIAL PRIMARY KEY,\n  draft_id INT NOT NULL,\n  file_id VARCHAR(255) NOT NULL,\n  file_type VARCHAR(50),\n  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\n  FOREIGN KEY (draft_id) REFERENCES drafts(id) ON DELETE CASCADE\n);\n\n-- Add Foreign Key\nALTER TABLE user_states \nADD CONSTRAINT fk_current_draft \nFOREIGN KEY (current_draft_id) \nREFERENCES drafts(id) \nON DELETE SET NULL;\n\n-- Create Indexes\nCREATE INDEX IF NOT EXISTS idx_drafts_user_id ON drafts(user_id);\nCREATE INDEX IF NOT EXISTS idx_drafts_status ON drafts(status);\nCREATE INDEX IF NOT EXISTS idx_attachments_draft_id ON draft_attachments(draft_id);"
+      },
+      "id": "setup-database",
+      "name": "Setup Database (Run Once)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [250, 500],
+      "disabled": true,
+      "notes": "Enable this node and execute once to create database tables"
+    }
+  ],
+  "connections": {
+    "Telegram Webhook": {
+      "main": [
+        [
+          {
+            "node": "Process Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Message": {
+      "main": [
+        [
+          {
+            "node": "Send to Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send to Telegram": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "telegram",
+      "id": "telegram-bot"
+    },
+    {
+      "name": "security",
+      "id": "security"
+    }
+  ],
+  "meta": {
+    "instanceId": "example-instance"
+  }
+}
