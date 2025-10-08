@@ -130,4 +130,8 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-app.lis
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`📡 n8n-MCP: ${N8N_MCP_URL}`);
+  console.log(`🌐 Web Interface: http://localhost:${PORT}`);
+});
